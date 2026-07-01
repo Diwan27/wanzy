@@ -1,0 +1,1380 @@
+<!DOCTYPE html>
+<html lang="id">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SiteVision CNN — Monitoring Kemajuan Proyek Konstruksi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Big+Shoulders+Display:wght@600;700;800&family=Inter:wght@400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap" rel="stylesheet">
+<style>
+  :root{
+    --navy-deep:#0B1622;
+    --navy-panel:#101F30;
+    --navy-panel-2:#152840;
+    --grid-line:rgba(120,165,210,0.10);
+    --grid-line-strong:rgba(120,165,210,0.18);
+    --ink:#E9EEF4;
+    --ink-dim:#9FB0C2;
+    --ink-faint:#5E7188;
+    --orange:#FF6A1A;
+    --orange-dim:rgba(255,106,26,0.16);
+    --cyan:#5AC8E0;
+    --green:#3DDC97;
+    --amber:#FFC857;
+    --red:#FF5D5D;
+    --line:1px solid var(--grid-line-strong);
+  }
+  *{box-sizing:border-box; margin:0; padding:0;}
+  html{scroll-behavior:smooth;}
+  body{
+    background:
+      linear-gradient(var(--grid-line) 1px, transparent 1px) 0 0 / 36px 36px,
+      linear-gradient(90deg, var(--grid-line) 1px, transparent 1px) 0 0 / 36px 36px,
+      var(--navy-deep);
+    color:var(--ink);
+    font-family:'Inter',sans-serif;
+    min-height:100vh;
+    -webkit-font-smoothing:antialiased;
+  }
+  .mono{font-family:'JetBrains Mono',monospace;}
+  .display{font-family:'Big Shoulders Display',sans-serif; text-transform:uppercase; letter-spacing:0.01em;}
+
+  /* ===== Top plate ===== */
+  .topbar{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:18px 32px;
+    border-bottom:var(--line);
+    background:linear-gradient(180deg, rgba(16,31,48,0.9), rgba(16,31,48,0.4));
+    backdrop-filter:blur(6px);
+    position:sticky; top:0; z-index:50;
+  }
+  .brand{display:flex; align-items:center; gap:14px;}
+  .brand-mark{
+    width:38px; height:38px; border:2px solid var(--orange); border-radius:4px;
+    display:flex; align-items:center; justify-content:center; position:relative; flex-shrink:0;
+  }
+  .brand-mark::before, .brand-mark::after{
+    content:""; position:absolute; width:6px; height:6px; border:1px solid var(--orange);
+  }
+  .brand-mark::before{top:-4px; left:-4px; border-right:0; border-bottom:0;}
+  .brand-mark::after{bottom:-4px; right:-4px; border-left:0; border-top:0;}
+  .brand-mark span{font-family:'Big Shoulders Display'; font-weight:800; color:var(--orange); font-size:20px;}
+  .brand-text .name{font-family:'Big Shoulders Display'; font-weight:700; font-size:22px; letter-spacing:0.04em; line-height:1;}
+  .brand-text .tag{font-family:'JetBrains Mono'; font-size:10px; color:var(--ink-faint); letter-spacing:0.12em; margin-top:3px;}
+  .topbar-meta{display:flex; gap:28px; align-items:center;}
+  .meta-item{font-family:'JetBrains Mono'; font-size:11px; color:var(--ink-dim); text-align:right;}
+  .meta-item b{display:block; color:var(--ink); font-size:13px; font-weight:600;}
+  .status-pill{
+    display:flex; align-items:center; gap:7px; padding:6px 12px;
+    border:1px solid rgba(61,220,151,0.4); border-radius:20px; background:rgba(61,220,151,0.08);
+    font-family:'JetBrains Mono'; font-size:11px; color:var(--green);
+  }
+  .status-dot{width:6px; height:6px; border-radius:50%; background:var(--green); box-shadow:0 0 8px var(--green); animation:pulse 1.8s infinite;}
+  @keyframes pulse{0%,100%{opacity:1;} 50%{opacity:0.35;}}
+
+  /* ===== Layout ===== */
+  .layout{display:grid; grid-template-columns:230px 1fr; max-width:1480px; margin:0 auto;}
+  .sidebar{
+    border-right:var(--line); padding:28px 0; position:sticky; top:73px; align-self:start;
+    height:calc(100vh - 73px); display:flex; flex-direction:column; justify-content:space-between;
+  }
+  .nav-group{padding:0 18px;}
+  .nav-label{font-family:'JetBrains Mono'; font-size:10px; color:var(--ink-faint); letter-spacing:0.14em; padding:0 10px; margin-bottom:10px;}
+  .nav-item{
+    display:flex; align-items:center; gap:11px; padding:11px 12px; border-radius:6px;
+    color:var(--ink-dim); font-size:13.5px; font-weight:500; cursor:pointer; margin-bottom:2px;
+    border-left:2px solid transparent; transition:.15s;
+  }
+  .nav-item:hover{background:rgba(120,165,210,0.06); color:var(--ink);}
+  .nav-item.active{background:var(--orange-dim); color:var(--orange); border-left-color:var(--orange);}
+  .nav-ico{width:16px; height:16px; flex-shrink:0; opacity:0.9;}
+  .role-card{
+    margin:0 18px; padding:14px; border:var(--line); border-radius:8px; background:var(--navy-panel);
+  }
+  .role-card .role-label{font-family:'JetBrains Mono'; font-size:9px; color:var(--ink-faint); letter-spacing:0.1em;}
+  .role-card .role-name{font-weight:600; font-size:13px; margin-top:4px;}
+  .role-card select{
+    width:100%; margin-top:10px; background:var(--navy-panel-2); border:1px solid var(--grid-line-strong);
+    color:var(--ink); font-size:12px; padding:7px 8px; border-radius:5px; font-family:'Inter';
+  }
+
+  main{padding:32px; min-width:0;}
+
+  /* ===== Hero / KPI band ===== */
+  .hero{
+    display:grid; grid-template-columns:1.3fr 1fr; gap:18px; margin-bottom:18px;
+  }
+  .hero-main{
+    border:var(--line); border-radius:10px; padding:30px 32px; background:
+      radial-gradient(circle at 85% -10%, rgba(255,106,26,0.10), transparent 55%), var(--navy-panel);
+    position:relative; overflow:hidden;
+  }
+  .eyebrow{font-family:'JetBrains Mono'; font-size:11px; color:var(--orange); letter-spacing:0.16em; margin-bottom:10px;}
+  .hero-main h1{font-family:'Big Shoulders Display'; font-weight:800; font-size:34px; line-height:1.05; text-transform:uppercase; letter-spacing:0.01em; max-width:560px;}
+  .hero-main p{color:var(--ink-dim); font-size:14px; margin-top:12px; max-width:520px; line-height:1.6;}
+  .hero-stats{display:flex; gap:34px; margin-top:26px;}
+  .hstat .num{font-family:'Big Shoulders Display'; font-weight:800; font-size:40px; line-height:1; color:var(--ink);}
+  .hstat .num span{color:var(--orange);}
+  .hstat .lbl{font-family:'JetBrains Mono'; font-size:10px; color:var(--ink-faint); letter-spacing:0.08em; margin-top:6px;}
+
+  .gauge-card{
+    border:var(--line); border-radius:10px; background:var(--navy-panel); padding:24px; display:flex; flex-direction:column; align-items:center; justify-content:center;
+  }
+  .gauge-card .gtitle{font-family:'JetBrains Mono'; font-size:10px; color:var(--ink-faint); letter-spacing:0.12em; align-self:flex-start; margin-bottom:6px;}
+  .ring{position:relative; width:148px; height:148px;}
+  .ring svg{transform:rotate(-90deg);}
+  .ring-bg{fill:none; stroke:var(--grid-line-strong); stroke-width:10;}
+  .ring-fg{fill:none; stroke:var(--orange); stroke-width:10; stroke-linecap:round; transition:stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1);}
+  .ring-center{position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;}
+  .ring-center .pct{font-family:'Big Shoulders Display'; font-weight:800; font-size:32px;}
+  .ring-center .sub{font-family:'JetBrains Mono'; font-size:9px; color:var(--ink-faint); letter-spacing:0.08em;}
+
+  /* ===== Section heads ===== */
+  .sec-head{display:flex; align-items:baseline; justify-content:space-between; margin:30px 0 14px;}
+  .sec-head h2{font-family:'Big Shoulders Display'; font-weight:700; font-size:21px; text-transform:uppercase; letter-spacing:0.03em;}
+  .sec-head .sec-sub{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--ink-faint);}
+
+  /* ===== Analysis grid ===== */
+  .analysis-grid{display:grid; grid-template-columns:1.15fr 0.85fr; gap:18px;}
+  .panel{border:var(--line); border-radius:10px; background:var(--navy-panel); overflow:hidden;}
+  .panel-head{display:flex; align-items:center; justify-content:space-between; padding:14px 18px; border-bottom:var(--line);}
+  .panel-head h3{font-size:13.5px; font-weight:600;}
+  .panel-head .file-tag{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--ink-faint);}
+
+  .scan-frame{position:relative; aspect-ratio:16/10; margin:18px; border-radius:6px; overflow:hidden; border:1px solid var(--grid-line-strong);}
+  .scan-frame img{width:100%; height:100%; object-fit:cover; display:block; filter:saturate(0.85) contrast(1.05);}
+
+  .drop-zone{
+    margin:18px; aspect-ratio:16/10; border:1.5px dashed var(--grid-line-strong); border-radius:6px;
+    display:flex; flex-direction:column; align-items:center; justify-content:center; gap:10px;
+    color:var(--ink-faint); cursor:pointer; transition:.15s; text-align:center; padding:20px;
+  }
+  .drop-zone:hover, .drop-zone.drag{border-color:var(--orange); background:var(--orange-dim); color:var(--ink);}
+  .drop-zone .dz-title{font-size:13.5px; font-weight:600; color:var(--ink);}
+  .drop-zone .dz-sub{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--ink-faint);}
+  .corner{position:absolute; width:22px; height:22px; border-color:var(--orange); z-index:3;}
+  .corner.tl{top:8px; left:8px; border-top:2px solid; border-left:2px solid;}
+  .corner.tr{top:8px; right:8px; border-top:2px solid; border-right:2px solid;}
+  .corner.bl{bottom:8px; left:8px; border-bottom:2px solid; border-left:2px solid;}
+  .corner.br{bottom:8px; right:8px; border-bottom:2px solid; border-right:2px solid;}
+  .scanline{position:absolute; left:0; right:0; height:2px; background:linear-gradient(90deg, transparent, var(--cyan), transparent); top:0; opacity:0; box-shadow:0 0 16px 2px var(--cyan); z-index:4;}
+  .scanline.run{animation:scanmove 1.6s ease-in-out;}
+  @keyframes scanmove{0%{top:0; opacity:1;} 95%{opacity:1;} 100%{top:100%; opacity:0;}}
+  .bbox{position:absolute; border:1.5px solid var(--green); opacity:0; transition:opacity .25s; z-index:3;}
+  .bbox.show{opacity:1;}
+  .bbox .tag{position:absolute; top:-20px; left:-1.5px; background:var(--green); color:#03251a; font-family:'JetBrains Mono'; font-size:9.5px; font-weight:600; padding:2px 6px; white-space:nowrap; border-radius:2px 2px 2px 0;}
+  .grid-overlay{position:absolute; inset:0; background-image:linear-gradient(rgba(90,200,224,0.10) 1px, transparent 1px), linear-gradient(90deg, rgba(90,200,224,0.10) 1px, transparent 1px); background-size:28px 28px; pointer-events:none; z-index:2;}
+
+  .panel-foot{padding:14px 18px; border-top:var(--line); display:flex; gap:10px; align-items:center;}
+  .btn{
+    font-family:'JetBrains Mono'; font-size:11.5px; letter-spacing:0.04em; padding:10px 16px; border-radius:6px; cursor:pointer;
+    border:1px solid var(--grid-line-strong); background:transparent; color:var(--ink-dim); transition:.15s; display:flex; align-items:center; gap:8px;
+  }
+  .btn:hover{border-color:var(--ink-dim); color:var(--ink);}
+  .btn-primary{background:var(--orange); color:#1A0900; border-color:var(--orange); font-weight:600;}
+  .btn-primary:hover{background:#ff7e3a; color:#1A0900;}
+  .btn-primary:disabled{opacity:0.55; cursor:wait;}
+
+  .result-line{display:flex; justify-content:space-between; align-items:center; padding:10px 18px; font-size:13px; border-bottom:1px solid var(--grid-line);}
+  .result-line:last-child{border-bottom:none;}
+  .result-line .k{color:var(--ink-dim);}
+  .result-line .v{font-family:'JetBrains Mono'; font-weight:600;}
+  .v.orange{color:var(--orange);}
+  .v.green{color:var(--green);}
+
+  .conf-bars{padding:6px 18px 18px;}
+  .conf-row{display:grid; grid-template-columns:90px 1fr 44px; align-items:center; gap:10px; margin-bottom:9px; font-size:11.5px;}
+  .conf-row .lbl{color:var(--ink-dim); font-family:'JetBrains Mono'; font-size:10.5px;}
+  .conf-track{height:6px; background:var(--navy-panel-2); border-radius:4px; overflow:hidden;}
+  .conf-fill{height:100%; background:linear-gradient(90deg, var(--cyan), var(--green)); width:0%; border-radius:4px; transition:width 1s cubic-bezier(.4,0,.2,1);}
+  .conf-row .pctval{font-family:'JetBrains Mono'; text-align:right; color:var(--ink);}
+
+  /* ===== Stage progress ===== */
+  .stage-grid{display:grid; grid-template-columns:repeat(5,1fr); gap:14px;}
+  .stage-card{border:var(--line); border-radius:10px; background:var(--navy-panel); padding:16px;}
+  .stage-card .si{display:flex; justify-content:space-between; align-items:center; margin-bottom:10px;}
+  .stage-card .si .ico{width:30px; height:30px; border-radius:6px; display:flex; align-items:center; justify-content:center; background:var(--navy-panel-2); font-family:'JetBrains Mono'; font-size:11px; color:var(--ink-dim);}
+  .stage-card .si .pct{font-family:'Big Shoulders Display'; font-weight:800; font-size:24px;}
+  .stage-card .name{font-size:12.5px; font-weight:600; margin-bottom:10px;}
+  .stage-track{height:6px; background:var(--navy-panel-2); border-radius:4px; overflow:hidden;}
+  .stage-fill{height:100%; border-radius:4px;}
+  .stage-card .stamp{font-family:'JetBrains Mono'; font-size:9.5px; color:var(--ink-faint); margin-top:8px;}
+
+  /* ===== Table ===== */
+  .table-wrap{border:var(--line); border-radius:10px; background:var(--navy-panel); overflow:hidden;}
+  table{width:100%; border-collapse:collapse; font-size:12.5px;}
+  thead th{
+    text-align:left; padding:12px 16px; font-family:'JetBrains Mono'; font-size:10px; letter-spacing:0.08em;
+    color:var(--ink-faint); border-bottom:var(--line); background:var(--navy-panel-2); font-weight:500;
+  }
+  tbody td{padding:13px 16px; border-bottom:1px solid var(--grid-line); color:var(--ink-dim);}
+  tbody tr:last-child td{border-bottom:none;}
+  tbody tr:hover{background:rgba(120,165,210,0.04);}
+  .proj-name{color:var(--ink); font-weight:600; font-size:13px;}
+  .badge{display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono'; font-size:10.5px; padding:4px 9px; border-radius:20px;}
+  .badge.ontrack{background:rgba(61,220,151,0.12); color:var(--green);}
+  .badge.watch{background:rgba(255,200,87,0.12); color:var(--amber);}
+  .badge.late{background:rgba(255,93,93,0.12); color:var(--red);}
+  .mini-track{width:70px; height:5px; background:var(--navy-panel-2); border-radius:4px; overflow:hidden; display:inline-block; vertical-align:middle; margin-right:8px;}
+  .mini-fill{height:100%; border-radius:4px;}
+
+  /* ===== Log ===== */
+  .log-panel{border:var(--line); border-radius:10px; background:#0A1320; padding:16px 18px; font-family:'JetBrains Mono'; font-size:11.5px; max-height:230px; overflow-y:auto;}
+  .log-row{display:flex; gap:12px; padding:6px 0; border-bottom:1px solid rgba(120,165,210,0.06); color:var(--ink-dim);}
+  .log-row .t{color:var(--ink-faint); flex-shrink:0;}
+  .log-row .tag{flex-shrink:0; padding:1px 6px; border-radius:3px; font-size:10px;}
+  .tag.ok{background:rgba(61,220,151,0.14); color:var(--green);}
+  .tag.info{background:rgba(90,200,224,0.14); color:var(--cyan);}
+  .tag.warn{background:rgba(255,200,87,0.14); color:var(--amber);}
+
+  footer{text-align:center; padding:30px; color:var(--ink-faint); font-family:'JetBrains Mono'; font-size:10.5px; border-top:var(--line); margin-top:10px;}
+
+  @media (max-width:980px){
+    .layout{grid-template-columns:1fr;}
+    .sidebar{display:none;}
+    .hero{grid-template-columns:1fr;}
+    .analysis-grid{grid-template-columns:1fr;}
+    .stage-grid{grid-template-columns:repeat(2,1fr);}
+  }
+  ::-webkit-scrollbar{width:8px; height:8px;}
+  ::-webkit-scrollbar-thumb{background:var(--grid-line-strong); border-radius:4px;}
+
+  @media (prefers-reduced-motion: reduce){
+    *{animation-duration:0.001ms !important; transition-duration:0.001ms !important;}
+  }
+  :focus-visible{outline:2px solid var(--cyan); outline-offset:2px;}
+
+  /* ===== View switching ===== */
+  .view{display:none;}
+  .view.active{display:block; animation:fadein .25s ease;}
+  @keyframes fadein{from{opacity:0; transform:translateY(4px);} to{opacity:1; transform:translateY(0);}}
+  .nav-item{cursor:pointer; user-select:none;}
+
+  /* ===== Page header (non-dashboard views) ===== */
+  .page-head{margin-bottom:24px;}
+  .page-head .eyebrow{margin-bottom:8px;}
+  .page-head h1{font-family:'Big Shoulders Display'; font-weight:800; font-size:28px; text-transform:uppercase; letter-spacing:0.01em;}
+  .page-head p{color:var(--ink-dim); font-size:13.5px; margin-top:8px; max-width:560px; line-height:1.6;}
+
+  /* ===== Filter bar ===== */
+  .filter-bar{display:flex; gap:10px; align-items:center; flex-wrap:wrap; margin-bottom:18px;}
+  .filter-bar select, .filter-bar input{
+    background:var(--navy-panel); border:1px solid var(--grid-line-strong); color:var(--ink);
+    font-family:'Inter'; font-size:12.5px; padding:9px 12px; border-radius:6px;
+  }
+  .filter-bar input{flex:1; min-width:180px;}
+  .filter-bar input::placeholder{color:var(--ink-faint);}
+  .chip-row{display:flex; gap:8px; flex-wrap:wrap;}
+  .chip{
+    font-family:'JetBrains Mono'; font-size:10.5px; padding:6px 12px; border-radius:20px;
+    border:1px solid var(--grid-line-strong); color:var(--ink-dim); cursor:pointer; transition:.15s;
+  }
+  .chip:hover{color:var(--ink); border-color:var(--ink-dim);}
+  .chip.active{background:var(--orange-dim); color:var(--orange); border-color:var(--orange);}
+
+  /* ===== Gallery (Citra Lapangan) ===== */
+  .gallery-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(230px,1fr)); gap:16px;}
+  .gallery-card{border:var(--line); border-radius:10px; background:var(--navy-panel); overflow:hidden; cursor:pointer; transition:.15s;}
+  .gallery-card:hover{border-color:var(--ink-dim); transform:translateY(-2px);}
+  .gallery-thumb{aspect-ratio:4/3; position:relative; overflow:hidden;}
+  .gallery-thumb .grid-overlay{opacity:0.6;}
+  .gallery-thumb .stage-tag{
+    position:absolute; top:8px; left:8px; font-family:'JetBrains Mono'; font-size:9.5px; font-weight:600;
+    padding:3px 8px; border-radius:3px; background:rgba(8,16,26,0.75); backdrop-filter:blur(2px); z-index:2;
+  }
+  .gallery-thumb .conf-tag{
+    position:absolute; bottom:8px; right:8px; font-family:'JetBrains Mono'; font-size:9.5px;
+    padding:3px 8px; border-radius:3px; background:rgba(8,16,26,0.75); color:var(--green); z-index:2;
+  }
+  .gallery-info{padding:11px 13px;}
+  .gallery-info .gname{font-size:12px; font-weight:600; color:var(--ink); margin-bottom:3px;}
+  .gallery-info .gmeta{font-family:'JetBrains Mono'; font-size:10px; color:var(--ink-faint);}
+
+  /* ===== Reports ===== */
+  .report-toolbar{display:flex; justify-content:space-between; align-items:center; margin-bottom:18px; gap:12px; flex-wrap:wrap;}
+  .report-list{display:flex; flex-direction:column; gap:10px;}
+  .report-row{
+    display:grid; grid-template-columns:auto 1fr auto auto auto; gap:18px; align-items:center;
+    border:var(--line); border-radius:10px; background:var(--navy-panel); padding:14px 18px;
+  }
+  .report-ico{width:38px; height:38px; border-radius:8px; background:var(--navy-panel-2); display:flex; align-items:center; justify-content:center; color:var(--orange); flex-shrink:0;}
+  .report-main .rname{font-size:13px; font-weight:600; color:var(--ink);}
+  .report-main .rmeta{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--ink-faint); margin-top:3px;}
+  .report-period{font-family:'JetBrains Mono'; font-size:11px; color:var(--ink-dim); text-align:right;}
+  @media (max-width:980px){ .report-row{grid-template-columns:auto 1fr; row-gap:10px;} .report-period, .report-row .badge{grid-column:2;} }
+
+  /* ===== History (Riwayat) ===== */
+  .history-panel{border:var(--line); border-radius:10px; background:#0A1320; overflow:hidden;}
+  .history-row{
+    display:grid; grid-template-columns:96px 90px 1fr 110px; gap:14px; align-items:center;
+    padding:11px 18px; border-bottom:1px solid rgba(120,165,210,0.06); font-size:12px; color:var(--ink-dim);
+  }
+  .history-row:last-child{border-bottom:none;}
+  .history-row.head{font-family:'JetBrains Mono'; font-size:10px; color:var(--ink-faint); letter-spacing:0.08em; background:var(--navy-panel-2);}
+  .history-row .t{font-family:'JetBrains Mono'; color:var(--ink-faint);}
+  .history-row .actor{font-family:'JetBrains Mono'; font-size:10.5px; color:var(--ink-faint); text-align:right;}
+
+  /* ===== Clickable table rows ===== */
+  tbody tr.proj-row{cursor:pointer;}
+  tbody tr.proj-row:hover{background:rgba(255,106,26,0.06);}
+  tbody tr.proj-row:hover .proj-name{color:var(--orange);}
+
+  /* ===== Building detail view ===== */
+  .back-link{
+    display:inline-flex; align-items:center; gap:7px; font-family:'JetBrains Mono'; font-size:11.5px;
+    color:var(--ink-dim); cursor:pointer; margin-bottom:18px; transition:.15s;
+  }
+  .back-link:hover{color:var(--orange);}
+  .building-hero{
+    display:grid; grid-template-columns:1.4fr 1fr; gap:18px; border:var(--line); border-radius:10px;
+    background:var(--navy-panel); overflow:hidden; margin-bottom:24px;
+  }
+  .building-visual{position:relative; min-height:220px; display:flex; align-items:flex-end; padding:22px;}
+  .building-visual .grid-overlay{opacity:0.5;}
+  .building-visual .bv-id{position:relative; z-index:2; font-family:'JetBrains Mono'; font-size:11px; color:rgba(233,238,244,0.7); letter-spacing:0.1em;}
+  .building-stats{padding:24px; display:flex; flex-direction:column; gap:16px; justify-content:center; border-left:var(--line);}
+  .bstat-row{display:flex; justify-content:space-between; align-items:center; font-size:13px;}
+  .bstat-row .k{color:var(--ink-dim);}
+  .bstat-row .v{font-family:'JetBrains Mono'; font-weight:600; color:var(--ink);}
+  .db-tag{
+    display:inline-flex; align-items:center; gap:6px; font-family:'JetBrains Mono'; font-size:10px; color:var(--cyan);
+    background:rgba(90,200,224,0.1); border:1px solid rgba(90,200,224,0.3); padding:4px 10px; border-radius:20px; margin-bottom:14px;
+  }
+  .db-tag .dot{width:5px; height:5px; border-radius:50%; background:var(--cyan); box-shadow:0 0 6px var(--cyan);}
+
+  /* ===== Login ===== */
+  #login-container {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .login-card {
+    width: 100%;
+    max-width: 420px;
+    background: var(--navy-panel);
+    border: var(--line);
+    border-radius: 12px;
+    padding: 40px 32px;
+    box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+    position: relative;
+    overflow: hidden;
+  }
+  .login-card::before {
+    content: "";
+    position: absolute;
+    top: 0; left: 0; right: 0;
+    height: 4px;
+    background: linear-gradient(90deg, var(--cyan), var(--orange), var(--green));
+  }
+  .login-header {
+    text-align: center;
+    margin-bottom: 30px;
+  }
+  .login-header .brand-mark {
+    margin: 0 auto 16px;
+    width: 48px; height: 48px;
+    border: 2px solid var(--orange);
+    border-radius: 4px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    position: relative;
+  }
+  .login-header .brand-mark::before, .login-header .brand-mark::after {
+    content: ""; position: absolute; width: 8px; height: 8px; border: 2px solid var(--orange);
+  }
+  .login-header .brand-mark::before { top: -6px; left: -6px; border-right: 0; border-bottom: 0; }
+  .login-header .brand-mark::after { bottom: -6px; right: -6px; border-left: 0; border-top: 0; }
+  .login-header .brand-mark span { 
+    font-family: 'Big Shoulders Display'; 
+    font-weight: 800; 
+    color: var(--orange); 
+    font-size: 26px; 
+  }
+  .login-header h1 {
+    font-family: 'Big Shoulders Display';
+    font-size: 28px;
+    font-weight: 800;
+    color: var(--ink);
+    letter-spacing: 0.02em;
+    text-transform: uppercase;
+  }
+  .login-header p {
+    font-family: 'JetBrains Mono';
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin-top: 8px;
+    letter-spacing: 0.05em;
+  }
+  .form-group {
+    margin-bottom: 20px;
+  }
+  .form-group label {
+    display: block;
+    font-family: 'JetBrains Mono';
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    margin-bottom: 8px;
+    letter-spacing: 0.05em;
+    text-align: left;
+  }
+  .form-group input {
+    width: 100%;
+    background: var(--navy-panel-2);
+    border: 1px solid var(--grid-line-strong);
+    color: var(--ink);
+    font-family: 'Inter';
+    font-size: 14px;
+    padding: 12px 14px;
+    border-radius: 6px;
+    transition: .2s;
+  }
+  .form-group input:focus {
+    outline: none;
+    border-color: var(--cyan);
+    box-shadow: 0 0 0 3px rgba(90,200,224,0.15);
+  }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: var(--orange);
+    color: #1A0900;
+    border: none;
+    border-radius: 6px;
+    font-family: 'JetBrains Mono';
+    font-weight: 700;
+    font-size: 13px;
+    letter-spacing: 0.05em;
+    cursor: pointer;
+    transition: .2s;
+    margin-top: 10px;
+  }
+  .login-btn:hover {
+    background: #ff7e3a;
+    transform: translateY(-1px);
+  }
+  .login-error {
+    color: var(--red);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 12px;
+    display: none;
+  }
+  .login-success {
+    color: var(--green);
+    font-size: 12px;
+    text-align: center;
+    margin-top: 12px;
+    display: none;
+    background: rgba(61,220,151,0.08);
+    border: 1px solid rgba(61,220,151,0.4);
+    padding: 10px;
+    border-radius: 6px;
+  }
+  .toggle-auth {
+    text-align: center;
+    margin-top: 20px;
+    font-size: 12px;
+    color: var(--ink-dim);
+  }
+  .toggle-auth a {
+    color: var(--cyan);
+    text-decoration: none;
+    font-weight: 600;
+    cursor: pointer;
+  }
+  .toggle-auth a:hover {
+    text-decoration: underline;
+  }
+  #registerForm {
+    display: none;
+  }
+</style>
+</head>
+<body>
+
+<div id="login-container">
+  <div class="login-card">
+    <div class="login-header">
+      <div class="brand-mark"><span>S</span></div>
+      <h1>SiteVision CNN</h1>
+      <p>MONITORING KEMAJUAN PROYEK KONSTRUKSI</p>
+    </div>
+    <form id="loginForm">
+      <div class="form-group">
+        <label>EMAIL / USERNAME</label>
+        <input type="text" id="loginUsername" placeholder="admin@sitevision.co.id" required>
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="loginPassword" placeholder="••••••••" required>
+      </div>
+      <button type="submit" class="login-btn">MASUK</button>
+      <div class="login-error" id="loginError">Username atau password salah.</div>
+      <div class="login-success" id="loginSuccess">Pendaftaran berhasil! Silakan masuk.</div>
+      <div class="toggle-auth">
+        Belum punya akun? <a id="showRegister">Daftar di sini</a>
+      </div>
+    </form>
+
+    <form id="registerForm">
+      <div class="form-group">
+        <label>USERNAME</label>
+        <input type="text" id="regUsername" placeholder="username_anda" required>
+      </div>
+      <div class="form-group">
+        <label>NAMA LENGKAP</label>
+        <input type="text" id="regName" placeholder="Nama Anda" required>
+      </div>
+      <div class="form-group">
+        <label>EMAIL</label>
+        <input type="email" id="regEmail" placeholder="email@sitevision.co.id" required>
+      </div>
+      <div class="form-group">
+        <label>PASSWORD</label>
+        <input type="password" id="regPassword" placeholder="Buat password" required>
+      </div>
+      <div class="form-group">
+        <label>PERAN (ROLE)</label>
+        <select id="regRole" style="width: 100%; background: var(--navy-panel-2); border: 1px solid var(--grid-line-strong); color: var(--ink); font-family: 'Inter'; font-size: 14px; padding: 12px 14px; border-radius: 6px;">
+          <option>Manajer Proyek</option>
+          <option>Pengelola Proyek</option>
+        </select>
+      </div>
+      <button type="submit" class="login-btn">DAFTAR AKUN</button>
+      <div class="toggle-auth">
+        Sudah punya akun? <a id="showLogin">Masuk di sini</a>
+      </div>
+    </form>
+  </div>
+</div>
+
+<div id="app-container" style="display: none;">
+<div class="topbar">
+  <div class="brand">
+    <div class="brand-mark"><span>S</span></div>
+    <div class="brand-text">
+      <div class="name">SiteVision <span style="color:var(--orange)">CNN</span></div>
+      <div class="tag">CONSTRUCTION PROGRESS MONITORING</div>
+    </div>
+  </div>
+  <div class="topbar-meta">
+    <div class="meta-item">PROYEK AKTIF<b>1</b></div>
+    <div class="meta-item">MODEL<b>CNN v1.0</b></div>
+    <div class="meta-item">AKURASI MODEL<b>92.6%</b></div>
+    <div class="status-pill"><div class="status-dot"></div>SYSTEM ONLINE</div>
+  </div>
+</div>
+
+<div class="layout">
+  <aside class="sidebar">
+    <div class="nav-group">
+      <div class="nav-label">MENU UTAMA</div>
+      <div class="nav-item active" data-view="dashboard"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="5" rx="1"/><rect x="14" y="12" width="7" height="9" rx="1"/><rect x="3" y="16" width="7" height="5" rx="1"/></svg>Dashboard</div>
+      <div class="nav-item" data-view="citra"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="14" rx="2"/><circle cx="8" cy="9" r="2"/><path d="M21 15l-5-5L5 21"/></svg>Citra Lapangan</div>
+      <div class="nav-item" data-view="analisis"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 3v18h18"/><path d="M7 14l4-5 3 3 5-7"/></svg>Analisis CNN</div>
+      <div class="nav-item" data-view="laporan"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>Laporan</div>
+      <div class="nav-item" data-view="riwayat"><svg class="nav-ico" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 3"/></svg>Riwayat</div>
+    </div>
+    <div class="role-card">
+      <div class="role-label">MASUK SEBAGAI</div>
+      <div class="role-name">Manajer Proyek</div>
+      <select id="roleSel">
+        <option>Manajer Proyek</option>
+        <option>Pengelola Proyek</option>
+        <option>Admin</option>
+      </select>
+    </div>
+  </aside>
+
+  <main>
+  <div class="view active" id="view-dashboard">
+    <!-- HERO -->
+    <section class="hero">
+      <div class="hero-main">
+        <div class="eyebrow">// ANALISIS CITRA LAPANGAN — CNN</div>
+        <h1>Monitoring kemajuan proyek konstruksi dari citra lapangan.</h1>
+        <div class="hero-stats">
+          <div class="hstat"><div class="num"><span>67</span>%</div><div class="lbl">PROGRES PROYEK SAAT INI</div></div>
+          <div class="hstat"><div class="num">1.150</div><div class="lbl">CITRA DALAM DATASET</div></div>
+          <div class="hstat"><div class="num">5</div><div class="lbl">TAHAPAN TERDETEKSI</div></div>
+        </div>
+      </div>
+      <div class="gauge-card">
+        <div class="gtitle">PROGRES VS TARGET</div>
+        <div class="ring">
+          <svg width="148" height="148" viewBox="0 0 148 148">
+            <circle class="ring-bg" cx="74" cy="74" r="64"/>
+            <circle id="ringFg" class="ring-fg" cx="74" cy="74" r="64" stroke-dasharray="402" stroke-dashoffset="402"/>
+          </svg>
+          <div class="ring-center">
+            <div class="pct">67%</div>
+            <div class="sub">TARGET: 70%</div>
+          </div>
+        </div>
+        <div style="margin-top:14px;"><span class="badge watch">● SEDIKIT TERTINGGAL · -3%</span></div>
+      </div>
+    </section>
+
+    <!-- STAGE PROGRESS -->
+    <div class="sec-head">
+      <h2>Kemajuan per Tahapan</h2>
+      <div class="sec-sub">BERDASARKAN AKUMULASI HASIL ANALISIS CITRA</div>
+    </div>
+    <section class="stage-grid">
+      <div class="stage-card"><div class="si"><div class="ico">01</div><div class="pct" style="color:var(--green)">100%</div></div><div class="name">Pondasi</div><div class="stage-track"><div class="stage-fill" style="width:100%; background:var(--green)"></div></div><div class="stamp">SELESAI · 12 MAR 2026</div></div>
+      <div class="stage-card"><div class="si"><div class="ico">02</div><div class="pct" style="color:var(--green)">100%</div></div><div class="name">Struktur</div><div class="stage-track"><div class="stage-fill" style="width:100%; background:var(--green)"></div></div><div class="stamp">SELESAI · 02 MEI 2026</div></div>
+      <div class="stage-card"><div class="si"><div class="ico">03</div><div class="pct" style="color:var(--orange)">68%</div></div><div class="name">Dinding & Partisi</div><div class="stage-track"><div class="stage-fill" style="width:68%; background:var(--orange)"></div></div><div class="stamp">BERLANGSUNG</div></div>
+      <div class="stage-card"><div class="si"><div class="ico">04</div><div class="pct" style="color:var(--ink-faint)">12%</div></div><div class="name">Pemasangan Atap</div><div class="stage-track"><div class="stage-fill" style="width:12%; background:var(--ink-faint)"></div></div><div class="stamp">DIMULAI</div></div>
+      <div class="stage-card"><div class="si"><div class="ico">05</div><div class="pct" style="color:var(--ink-faint)">0%</div></div><div class="name">Finishing</div><div class="stage-track"><div class="stage-fill" style="width:0%; background:var(--ink-faint)"></div></div><div class="stamp">BELUM DIMULAI</div></div>
+    </section>
+
+    <!-- PROJECT TABLE -->
+    <div class="sec-head">
+      <h2>Daftar Proyek Dipantau</h2>
+      <div class="sec-sub">3 PROYEK AKTIF</div>
+    </div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>Proyek</th><th>Lokasi</th><th>Progres</th><th>Citra Dianalisis</th><th>Target Selesai</th><th>Status</th></tr></thead>
+        <tbody id="projTableBody">
+          <tr class="proj-row" data-proj="PROYEK_IKN"><td><div class="proj-name">Istana Negara IKN Nusantara</div><div class="mono" style="font-size:10.5px; color:var(--ink-faint)">PROYEK_IKN</div></td><td>Penajam Paser Utara, Kaltim</td><td><span class="mini-track"><span class="mini-fill" style="width:67%; background:var(--amber); display:block;"></span></span>67%</td><td>284 citra</td><td>Sep 2026</td><td><span class="badge watch">● Sedikit Tertinggal</span></td></tr>
+          <tr class="proj-row" data-proj="PROYEK_MRT"><td><div class="proj-name">MRT Jakarta Fase 2A</div><div class="mono" style="font-size:10.5px; color:var(--ink-faint)">PROYEK_MRT</div></td><td>DKI Jakarta</td><td><span class="mini-track"><span class="mini-fill" style="width:91%; background:var(--green); display:block;"></span></span>91%</td><td>512 citra</td><td>Agu 2026</td><td><span class="badge ontrack">● Sesuai Jadwal</span></td></tr>
+          <tr class="proj-row" data-proj="PROYEK_KCJB"><td><div class="proj-name">Stasiun Kereta Cepat Halim</div><div class="mono" style="font-size:10.5px; color:var(--ink-faint)">PROYEK_KCJB</div></td><td>Jakarta Timur</td><td><span class="mini-track"><span class="mini-fill" style="width:34%; background:var(--red); display:block;"></span></span>34%</td><td>96 citra</td><td>Jun 2026</td><td><span class="badge late">● Terlambat</span></td></tr>
+        </tbody>
+      </table>
+    </div>
+
+    <!-- LOG -->
+    <div class="sec-head">
+      <h2>Log Aktivitas Sistem</h2>
+      <div class="sec-sub">REAL-TIME</div>
+    </div>
+    <div class="log-panel" id="logPanel">
+      <div class="log-row"><span class="t">07:42:11</span><span class="tag ok">INFERENCE</span><span>site_ikn_240.jpg diklasifikasikan sebagai Tahap Struktur (94.2%)</span></div>
+      <div class="log-row"><span class="t">07:41:55</span><span class="tag info">UPLOAD</span><span>3 citra baru diunggah oleh Pengelola Proyek — PROYEK_IKN</span></div>
+      <div class="log-row"><span class="t">07:30:02</span><span class="tag warn">ALERT</span><span>PROYEK_KCJB terdeteksi 4.2% di bawah kurva target mingguan</span></div>
+      <div class="log-row"><span class="t">06:58:40</span><span class="tag ok">REPORT</span><span>Laporan mingguan PROYEK_MRT berhasil dibuat dan diunduh</span></div>
+      <div class="log-row"><span class="t">06:12:19</span><span class="tag info">MODEL</span><span>Model cnn_v1.0.h5 dimuat — akurasi validasi 91.4%</span></div>
+    </div>
+  </div>
+  <!-- /view-dashboard -->
+
+  <!-- ============ VIEW: CITRA LAPANGAN ============ -->
+  <div class="view" id="view-citra">
+    <div class="page-head">
+      <div class="eyebrow">// REPOSITORI CITRA</div>
+      <h1>Citra Lapangan</h1>
+      <p>Seluruh citra lapangan yang diunggah dari ketiga proyek, lengkap dengan hasil klasifikasi tahap konstruksi oleh model CNN. Klik citra untuk membuka detail analisis.</p>
+    </div>
+    <div class="filter-bar">
+      <select id="citraProyek">
+        <option value="">Semua Proyek</option>
+        <option value="PROYEK_IKN">PROYEK_IKN — Istana Negara IKN Nusantara</option>
+        <option value="PROYEK_MRT">PROYEK_MRT — MRT Jakarta Fase 2A</option>
+        <option value="PROYEK_KCJB">PROYEK_KCJB — Stasiun Kereta Cepat Halim</option>
+      </select>
+      <input type="text" id="citraSearch" placeholder="Cari nama file citra…">
+    </div>
+    <div class="chip-row" style="margin-bottom:18px;" id="citraChips">
+      <span class="chip active" data-stage="">Semua Tahap</span>
+      <span class="chip" data-stage="Pondasi">Pondasi</span>
+      <span class="chip" data-stage="Struktur">Struktur</span>
+      <span class="chip" data-stage="Dinding">Dinding &amp; Partisi</span>
+      <span class="chip" data-stage="Atap">Atap</span>
+      <span class="chip" data-stage="Finishing">Finishing</span>
+    </div>
+    <div class="gallery-grid" id="galleryGrid"></div>
+  </div>
+
+  <!-- ============ VIEW: ANALISIS CNN ============ -->
+  <div class="view" id="view-analisis">
+    <div class="page-head">
+      <div class="eyebrow">// ANALISIS CITRA — CNN</div>
+      <h1>Analisis CNN</h1>
+      <p>Unggah citra lapangan terbaru untuk diklasifikasikan ke salah satu dari 5 tahapan konstruksi secara otomatis menggunakan model cnn_v1.0.h5.</p>
+    </div>
+    <div class="sec-head" style="margin-top:0;">
+      <h2>Analisis Citra · CNN Inference</h2>
+      <div class="sec-sub">PROYEK_IKN / ISTANA_NEGARA_IKN</div>
+    </div>
+    <section class="analysis-grid">
+      <div class="panel">
+        <div class="panel-head">
+          <h3>Citra Lapangan</h3>
+          <div class="file-tag" id="fileTag">Belum ada citra</div>
+        </div>
+
+        <div class="drop-zone" id="dropZone">
+          <input type="file" id="fileInput" accept="image/*" hidden>
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" width="34" height="34"><path d="M12 16V4M12 4l-4 4M12 4l4 4"/><path d="M4 16v3a2 2 0 002 2h12a2 2 0 002-2v-3"/></svg>
+          <div class="dz-title">Seret &amp; lepas citra di sini</div>
+          <div class="dz-sub">atau klik untuk memilih file · JPG, PNG</div>
+        </div>
+
+        <div class="scan-frame" id="scanFrame" style="display:none;">
+          <div class="grid-overlay"></div>
+          <img id="previewImg" src="" alt="Citra lapangan yang diunggah">
+          <div class="corner tl"></div><div class="corner tr"></div><div class="corner bl"></div><div class="corner br"></div>
+          <div class="scanline" id="scanline"></div>
+          <div class="bbox" id="box1" style="top:18%; left:8%; width:38%; height:55%;"><span class="tag">Kolom Struktur · 94%</span></div>
+          <div class="bbox" id="box2" style="top:40%; left:52%; width:34%; height:40%;"><span class="tag">Balok Beton · 89%</span></div>
+          <div class="bbox" id="box3" style="top:62%; left:30%; width:22%; height:24%;"><span class="tag">Bekisting · 81%</span></div>
+        </div>
+
+        <div class="panel-foot">
+          <button class="btn btn-primary" id="runBtn" disabled>▶ Jalankan Analisis CNN</button>
+          <button class="btn" id="newBtn" style="display:none;">↻ Ganti Citra</button>
+          <span class="mono" id="runStatus" style="font-size:11px; color:var(--ink-faint); margin-left:auto;">Unggah citra untuk mulai</span>
+        </div>
+      </div>
+
+      <div class="panel">
+        <div class="panel-head"><h3>Hasil Klasifikasi</h3><div class="file-tag">model: cnn_v1.0.h5</div></div>
+        <div class="result-line"><span class="k">Tahap Terdeteksi</span><span class="v orange" id="resStage">Tahap Struktur</span></div>
+        <div class="result-line"><span class="k">Tingkat Kepercayaan</span><span class="v green" id="resConf">94.2%</span></div>
+        <div class="result-line"><span class="k">Elemen Teridentifikasi</span><span class="v">3 objek</span></div>
+        <div class="result-line"><span class="k">Waktu Inferensi</span><span class="v" id="resTime">0.41s</span></div>
+        <div class="conf-bars" id="confBars">
+          <div class="conf-row"><span class="lbl">Pondasi</span><div class="conf-track"><div class="conf-fill" style="width:4%"></div></div><span class="pctval">4%</span></div>
+          <div class="conf-row"><span class="lbl">Struktur</span><div class="conf-track"><div class="conf-fill" style="width:94%"></div></div><span class="pctval">94%</span></div>
+          <div class="conf-row"><span class="lbl">Dinding</span><div class="conf-track"><div class="conf-fill" style="width:1%"></div></div><span class="pctval">1%</span></div>
+          <div class="conf-row"><span class="lbl">Atap</span><div class="conf-track"><div class="conf-fill" style="width:0%"></div></div><span class="pctval">0%</span></div>
+          <div class="conf-row"><span class="lbl">Finishing</span><div class="conf-track"><div class="conf-fill" style="width:1%"></div></div><span class="pctval">1%</span></div>
+        </div>
+      </div>
+    </section>
+    <div class="sec-head">
+      <h2>Riwayat Inferensi Sesi Ini</h2>
+      <div class="sec-sub">DITAMBAH OTOMATIS SETELAH ANALISIS</div>
+    </div>
+    <div class="log-panel" id="inferenceLog">
+      <div class="log-row"><span class="t">07:42:11</span><span class="tag ok">INFERENCE</span><span>site_blokC_240.jpg diklasifikasikan sebagai Tahap Struktur (94.2%)</span></div>
+    </div>
+  </div>
+
+  <!-- ============ VIEW: LAPORAN ============ -->
+  <div class="view" id="view-laporan">
+    <div class="page-head">
+      <div class="eyebrow">// DOKUMEN KEMAJUAN PROYEK</div>
+      <h1>Laporan</h1>
+      <p>Buat dan unduh laporan kemajuan proyek berdasarkan akumulasi hasil analisis CNN. Laporan mencakup ringkasan progres, distribusi tahapan, dan grafik citra teranalisis.</p>
+    </div>
+    <div class="report-toolbar">
+      <div class="filter-bar" style="margin-bottom:0;">
+        <select id="laporanProyek">
+          <option value="">Semua Proyek</option>
+          <option>PROYEK_IKN — Istana Negara IKN Nusantara</option>
+          <option>PROYEK_MRT — MRT Jakarta Fase 2A</option>
+          <option>PROYEK_KCJB — Stasiun Kereta Cepat Halim</option>
+        </select>
+        <select id="laporanJenis">
+          <option value="">Semua Jenis</option>
+          <option>Mingguan</option>
+          <option>Bulanan</option>
+          <option>Ad-hoc</option>
+        </select>
+      </div>
+      <button class="btn btn-primary" id="genReportBtn">+ Buat Laporan Baru</button>
+    </div>
+    <div class="report-list" id="reportList"></div>
+  </div>
+
+  <!-- ============ VIEW: RIWAYAT ============ -->
+  <div class="view" id="view-riwayat">
+    <div class="page-head">
+      <div class="eyebrow">// AUDIT TRAIL SISTEM</div>
+      <h1>Riwayat</h1>
+      <p>Catatan lengkap seluruh aktivitas sistem: unggahan citra, proses inferensi CNN, peringatan keterlambatan, dan pembuatan laporan di semua proyek.</p>
+    </div>
+    <div class="chip-row" style="margin-bottom:14px;" id="riwayatChips">
+      <span class="chip active" data-type="">Semua</span>
+      <span class="chip" data-type="ok">Inference / Report</span>
+      <span class="chip" data-type="info">Upload / Model</span>
+      <span class="chip" data-type="warn">Alert</span>
+    </div>
+    <div class="history-panel" id="historyPanel">
+      <div class="history-row head"><span>WAKTU</span><span>JENIS</span><span>KETERANGAN</span><span style="text-align:right;">SUMBER</span></div>
+    </div>
+  </div>
+
+  <!-- ============ VIEW: DETAIL GEDUNG ============ -->
+  <div class="view" id="view-detail">
+    <span class="back-link" id="backFromDetail">← Kembali ke Daftar Proyek</span>
+    <div class="db-tag"><span class="dot"></span>DATA DIMUAT DARI DATABASE LOKAL</div>
+    <div id="detailContent"></div>
+  </div>
+
+
+    <footer>SITEVISION CNN — PROTOTIPE ANTARMUKA MONITORING KEMAJUAN PROYEK KONSTRUKSI</footer>
+  </main>
+</div>
+</div> <!-- /app-container -->
+
+<script>
+  /* ============ NAV / VIEW SWITCHING ============ */
+  const navItems = document.querySelectorAll('.nav-item[data-view]');
+  const views = document.querySelectorAll('.view');
+  navItems.forEach(item => {
+    item.addEventListener('click', () => {
+      const target = item.dataset.view;
+      navItems.forEach(n => n.classList.remove('active'));
+      item.classList.add('active');
+      views.forEach(v => v.classList.toggle('active', v.id === 'view-' + target));
+      window.scrollTo({top:0, behavior:'smooth'});
+      if(target === 'citra' && !galleryBuilt) buildGallery();
+      if(target === 'laporan' && !reportsBuilt) buildReports();
+      if(target === 'riwayat' && !historyBuilt) buildHistory();
+    });
+  });
+
+  /* ============ HERO RING ============ */
+  const ring = document.getElementById('ringFg');
+  const circumference = 402;
+  window.addEventListener('load', () => {
+    requestAnimationFrame(()=>{ ring.style.strokeDashoffset = circumference * (1 - 0.67); });
+  });
+
+  /* ============ STAGES (single source of truth — bug fix: was declared twice) ============ */
+  const stages = [
+    {name:"Tahap Pondasi", short:"Pondasi", confs:[91,5,2,1,1]},
+    {name:"Tahap Struktur", short:"Struktur", confs:[3,94,2,0,1]},
+    {name:"Tahap Dinding & Partisi", short:"Dinding", confs:[1,9,86,3,1]},
+    {name:"Tahap Pemasangan Atap", short:"Atap", confs:[0,2,6,88,4]},
+    {name:"Tahap Finishing", short:"Finishing", confs:[0,1,2,5,92]},
+  ];
+  const projects = ["PROYEK_IKN","PROYEK_MRT","PROYEK_KCJB"];
+  const projectNames = {PROYEK_IKN:"Istana Negara IKN Nusantara", PROYEK_MRT:"MRT Jakarta Fase 2A", PROYEK_KCJB:"Stasiun Kereta Cepat Halim"};
+
+  /* ============ "DATABASE" — backed by persistent key/value storage ============ */
+  const DEFAULT_DB = {
+    PROYEK_IKN:{ id:"PROYEK_IKN", name:"Istana Negara IKN Nusantara", location:"Penajam Paser Utara, Kaltim", progress:67, target:70, status:"watch", statusLabel:"Sedikit Tertinggal", totalImages:284, targetDate:"Sep 2026", startDate:"12 Mar 2026", stagePct:[100,100,68,12,0], desc:"Pembangunan Istana Negara dan Lapangan Upacara di Kawasan Inti Pusat Pemerintahan (KIPP) Ibu Kota Nusantara. Proyek ini memadukan desain ikonik burung Garuda dengan teknologi smart-building dan material ramah lingkungan." },
+    PROYEK_MRT:{ id:"PROYEK_MRT", name:"MRT Jakarta Fase 2A", location:"DKI Jakarta", progress:91, target:88, status:"ontrack", statusLabel:"Sesuai Jadwal", totalImages:512, targetDate:"Agu 2026", startDate:"04 Jan 2026", stagePct:[100,100,100,90,42], desc:"Proyek perluasan jalur Mass Rapid Transit (MRT) Jakarta Fase 2A yang membentang dari Stasiun Bundaran HI hingga Kota. Mencakup pembangunan terowongan bawah tanah dan stasiun ikonik seperti Stasiun Thamrin dan Monas." },
+    PROYEK_KCJB:{ id:"PROYEK_KCJB", name:"Stasiun Kereta Cepat Halim", location:"Jakarta Timur", progress:34, target:48, status:"late", statusLabel:"Terlambat", totalImages:96, targetDate:"Jun 2026", startDate:"20 Feb 2026", stagePct:[80,30,5,0,0], desc:"Pembangunan stasiun utama Kereta Cepat Jakarta-Bandung (Whoosh). Stasiun ini didesain sebagai titik integrasi transportasi modern terbesar yang menghubungkan LRT Jabodebek dan jaringan kereta cepat pertama di Asia Tenggara." },
+  };
+  let projectsDB = null;
+
+  async function dbGet(key, fallback){
+    try{
+      const res = await window.storage.get(key, false);
+      return res ? JSON.parse(res.value) : fallback;
+    }catch(e){ return fallback; }
+  }
+  async function dbSet(key, value){
+    try{ await window.storage.set(key, JSON.stringify(value), false); }catch(e){ console.error('DB save failed', e); }
+  }
+
+  async function initDatabase(){
+    projectsDB = await dbGet('projects-db', null);
+    if(!projectsDB){ projectsDB = DEFAULT_DB; await dbSet('projects-db', projectsDB); }
+
+    const savedGallery = await dbGet('gallery-items', null);
+    if(savedGallery){ galleryData = savedGallery; }
+
+    const savedReports = await dbGet('reports-db', null);
+    if(savedReports){ reportSeed.length = 0; reportSeed.push(...savedReports); }
+
+    const savedHistory = await dbGet('history-db', null);
+    if(savedHistory){ historySeed.length = 0; historySeed.push(...savedHistory); }
+
+    refreshProjectTable();
+  }
+
+  function refreshProjectTable(){
+    document.querySelectorAll('#projTableBody tr.proj-row').forEach(row => {
+      const p = projectsDB[row.dataset.proj];
+      if(!p) return;
+      const cells = row.querySelectorAll('td');
+      cells[2].querySelector('.mini-fill').style.width = p.progress + '%';
+      cells[2].lastChild.textContent = p.progress + '%';
+      cells[3].textContent = p.totalImages + ' citra';
+    });
+  }
+
+  /* ============ DETAIL GEDUNG ============ */
+  function thumbGradientFor(id){
+    const map = {PROYEK_IKN:['#1c3550','#0b1622'], PROYEK_MRT:['#1f3b2c','#0b1622'], PROYEK_KCJB:['#3a2a14','#0b1622']};
+    return map[id] || ['#1c3550','#0b1622'];
+  }
+  function openProjectDetail(id){
+    const p = projectsDB[id];
+    if(!p) return;
+    const [c1,c2] = thumbGradientFor(id);
+    const stageLabels = ["Pondasi","Struktur","Dinding & Partisi","Atap","Finishing"];
+    const stageRows = p.stagePct.map((pct,i) => `
+      <div class="stage-card"><div class="si"><div class="ico">0${i+1}</div><div class="pct" style="color:${pct>=100?'var(--green)':pct>0?'var(--orange)':'var(--ink-faint)'}">${pct}%</div></div><div class="name">${stageLabels[i]}</div><div class="stage-track"><div class="stage-fill" style="width:${pct}%; background:${pct>=100?'var(--green)':pct>0?'var(--orange)':'var(--ink-faint)'}"></div></div></div>
+    `).join('');
+    const photos = galleryData.filter(g => g.proj === id).slice(0,8);
+    const photoHtml = photos.length ? photos.map(g => `
+      <div class="gallery-card">
+        <div class="gallery-thumb" style="background:linear-gradient(135deg, ${c1}, ${c2});">
+          <img src="${g.imgUrl || ''}" alt="Citra" style="width:100%; height:100%; object-fit:cover;">
+          <div class="grid-overlay"></div>
+          <span class="stage-tag" style="color:var(--orange)">${g.stage}</span>
+          <span class="conf-tag">${g.confVal}%</span>
+        </div>
+        <div class="gallery-info"><div class="gname">${g.fname}</div></div>
+      </div>`).join('') : `<div style="grid-column:1/-1; padding:24px; text-align:center; color:var(--ink-faint); font-family:'JetBrains Mono'; font-size:11.5px;">Belum ada citra untuk proyek ini.</div>`;
+
+    document.getElementById('detailContent').innerHTML = `
+      <div class="building-hero">
+        <div class="building-visual" style="background:linear-gradient(135deg, ${c1}, ${c2});">
+          <div class="grid-overlay"></div>
+          <div class="bv-id">${p.id}</div>
+        </div>
+        <div class="building-stats">
+          <div class="eyebrow" style="margin-bottom:0;">// PROFIL GEDUNG</div>
+          <h1 class="display" style="font-size:24px; text-transform:uppercase;">${p.name}</h1>
+          <p style="font-size:13px; color:var(--ink-dim); margin-bottom:16px; line-height:1.5;">${p.desc || ''}</p>
+          <div class="bstat-row"><span class="k">Lokasi</span><span class="v">${p.location}</span></div>
+          <div class="bstat-row"><span class="k">Progres Saat Ini</span><span class="v">${p.progress}% (target ${p.target}%)</span></div>
+          <div class="bstat-row"><span class="k">Mulai Konstruksi</span><span class="v">${p.startDate}</span></div>
+          <div class="bstat-row"><span class="k">Target Selesai</span><span class="v">${p.targetDate}</span></div>
+          <div class="bstat-row"><span class="k">Citra Dianalisis</span><span class="v">${p.totalImages}</span></div>
+          <div class="bstat-row"><span class="k">Status</span><span class="badge ${p.status}">● ${p.statusLabel}</span></div>
+        </div>
+      </div>
+      <div class="sec-head" style="margin-top:0;"><h2>Kemajuan per Tahapan</h2><div class="sec-sub">${p.id}</div></div>
+      <section class="stage-grid">${stageRows}</section>
+      <div class="sec-head"><h2>Citra Lapangan — ${p.name}</h2><div class="sec-sub">${photos.length} DARI ${p.totalImages} CITRA</div></div>
+      <div class="gallery-grid">${photoHtml}</div>
+    `;
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    views.forEach(v => v.classList.toggle('active', v.id === 'view-detail'));
+    window.scrollTo({top:0, behavior:'smooth'});
+    addLog('VIEW','info', `Membuka detail gedung ${p.name} (${p.id})`, 'logPanel');
+  }
+  document.getElementById('backFromDetail').addEventListener('click', () => {
+    document.querySelector('.nav-item[data-view="dashboard"]').click();
+  });
+  document.getElementById('projTableBody').addEventListener('click', e => {
+    const row = e.target.closest('tr.proj-row');
+    if(row) openProjectDetail(row.dataset.proj);
+  });
+
+  /* ============ ANALISIS CNN PANEL ============ */
+  const runBtn = document.getElementById('runBtn');
+  const newBtn = document.getElementById('newBtn');
+  const scanline = document.getElementById('scanline');
+  const runStatus = document.getElementById('runStatus');
+  const fileTag = document.getElementById('fileTag');
+  const dropZone = document.getElementById('dropZone');
+  const fileInput = document.getElementById('fileInput');
+  const scanFrame = document.getElementById('scanFrame');
+  const previewImg = document.getElementById('previewImg');
+  const boxes = [document.getElementById('box1'), document.getElementById('box2'), document.getElementById('box3')];
+
+  function addLog(tag, tagClass, text, panelId){
+    const panel = document.getElementById(panelId || 'logPanel');
+    if(panel){
+      const row = document.createElement('div');
+      row.className = 'log-row';
+      const now = new Date();
+      const t = now.toTimeString().slice(0,8);
+      row.innerHTML = `<span class="t">${t}</span><span class="tag ${tagClass}">${tag}</span><span>${text}</span>`;
+      panel.insertBefore(row, panel.firstChild);
+    }
+    if(typeof historySeed !== 'undefined'){
+      const now = new Date();
+      historySeed.unshift({t:now.toTimeString().slice(0,8), tag, cls:tagClass, text, actor:"Sesi Ini"});
+      dbSet('history-db', historySeed);
+      if(historyBuilt) renderHistory();
+    }
+  }
+
+  function loadImage(file){
+    if(!file || !file.type.startsWith('image/')) return;
+    const url = URL.createObjectURL(file);
+    previewImg.src = url;
+    dropZone.style.display = 'none';
+    scanFrame.style.display = 'block';
+    newBtn.style.display = 'inline-flex';
+    runBtn.disabled = false;
+    boxes.forEach(b => b.classList.remove('show'));
+    fileTag.textContent = `${file.name} · ${(file.size/1024).toFixed(0)} KB`;
+    runStatus.textContent = "Siap dianalisis";
+    addLog('UPLOAD','info', `${file.name} diunggah dan siap dianalisis`, 'logPanel');
+  }
+
+  dropZone.addEventListener('click', () => fileInput.click());
+  fileInput.addEventListener('change', e => loadImage(e.target.files[0]));
+
+  ['dragenter','dragover'].forEach(evt => dropZone.addEventListener(evt, e => {
+    e.preventDefault(); dropZone.classList.add('drag');
+  }));
+  ['dragleave','drop'].forEach(evt => dropZone.addEventListener(evt, e => {
+    e.preventDefault(); dropZone.classList.remove('drag');
+  }));
+  dropZone.addEventListener('drop', e => loadImage(e.dataTransfer.files[0]));
+
+  newBtn.addEventListener('click', () => {
+    scanFrame.style.display = 'none';
+    dropZone.style.display = 'flex';
+    newBtn.style.display = 'none';
+    runBtn.disabled = true;
+    fileTag.textContent = "Belum ada citra";
+    runStatus.textContent = "Unggah citra untuk mulai";
+  });
+
+  runBtn.addEventListener('click', () => {
+    runBtn.disabled = true;
+    runStatus.textContent = "Memproses citra…";
+    boxes.forEach(b => b.classList.remove('show'));
+    scanline.classList.remove('run'); void scanline.offsetWidth; scanline.classList.add('run');
+
+    const pick = stages[Math.floor(Math.random()*stages.length)];
+    const topIdx = pick.confs.indexOf(Math.max(...pick.confs));
+
+    setTimeout(() => {
+      document.getElementById('resStage').textContent = pick.name;
+      document.getElementById('resConf').textContent = pick.confs[topIdx] + ".0%";
+      document.getElementById('resTime').textContent = (0.3 + Math.random()*0.4).toFixed(2) + "s";
+
+      const rows = document.querySelectorAll('#confBars .conf-row');
+      rows.forEach((row, i) => {
+        row.querySelector('.conf-fill').style.width = pick.confs[i] + '%';
+        row.querySelector('.pctval').textContent = pick.confs[i] + '%';
+      });
+
+      boxes.forEach((b, i) => setTimeout(()=>b.classList.add('show'), i*180));
+      runStatus.textContent = "Analisis selesai";
+      runBtn.disabled = false;
+      const msg = `Citra diklasifikasikan sebagai ${pick.name} (${pick.confs[topIdx]}.0%)`;
+      addLog('INFERENCE','ok', msg, 'logPanel');
+      addLog('INFERENCE','ok', msg, 'inferenceLog');
+
+      // Persist this analysis result into the gallery "database"
+      const curProj = "PROYEK_007";
+      const fname = fileTag.textContent.split(' · ')[0] || `site_${Date.now()}.jpg`;
+      galleryData.unshift({proj:curProj, stage:pick.short, fname, confVal:pick.confs[topIdx], idx:galleryData.length});
+      dbSet('gallery-items', galleryData);
+      if(projectsDB && projectsDB[curProj]){
+        projectsDB[curProj].totalImages += 1;
+        dbSet('projects-db', projectsDB);
+        refreshProjectTable();
+      }
+      if(galleryBuilt) buildGallery();
+    }, 1450);
+  });
+
+  /* ============ CITRA LAPANGAN — GALLERY ============ */
+  let galleryBuilt = false;
+  let galleryData = [];
+
+  function thumbGradient(seed){
+    const palettes = [
+      ['#1c3550','#0b1622'], ['#1f3b2c','#0b1622'], ['#3a2a14','#0b1622'],
+      ['#2a1f3a','#0b1622'], ['#143a3a','#0b1622']
+    ];
+    return palettes[seed % palettes.length];
+  }
+  function buildGallery(){
+    galleryBuilt = true;
+    const grid = document.getElementById('galleryGrid');
+    if(galleryData.length === 0){
+      for(let i=0;i<24;i++){
+        const proj = projects[i % projects.length];
+        const stage = stages[i % stages.length];
+        const fname = `site_${proj.toLowerCase()}_${(120+i*7)}.jpg`;
+        const confVal = Math.max(...stage.confs);
+        const imgUrl = `https://loremflickr.com/400/300/construction,building?lock=${i+100}`;
+        galleryData.push({proj, stage:stage.short, fname, confVal, idx:i, imgUrl});
+      }
+      dbSet('gallery-items', galleryData);
+    }
+    let html = galleryData.map((g,i) => {
+      const [c1,c2] = thumbGradient(i);
+      return `
+        <div class="gallery-card" data-proj="${g.proj}" data-stage="${g.stage}" data-fname="${g.fname}" data-img="${g.imgUrl}">
+          <div class="gallery-thumb" style="background:linear-gradient(135deg, ${c1}, ${c2});">
+            <img src="${g.imgUrl}" alt="Citra" style="width:100%; height:100%; object-fit:cover;">
+            <div class="grid-overlay"></div>
+            <span class="stage-tag" style="color:var(--orange)">${g.stage}</span>
+            <span class="conf-tag">${g.confVal}%</span>
+          </div>
+          <div class="gallery-info">
+            <div class="gname">${g.fname}</div>
+            <div class="gmeta" title="Klik untuk lihat detail gedung">🏢 ${g.proj} · ${projectNames[g.proj]}</div>
+          </div>
+        </div>`;
+    }).join('');
+    grid.innerHTML = html;
+    grid.querySelectorAll('.gallery-card').forEach(card => {
+      card.addEventListener('click', (e) => {
+        if(e.altKey || e.shiftKey){
+          openProjectDetail(card.dataset.proj);
+          return;
+        }
+        addLog('VIEW','info', `Membuka detail ${card.dataset.fname}`, 'logPanel');
+        
+        // Menampilkan gambar di Analisis CNN
+        document.getElementById('dropZone').style.display = 'none';
+        document.getElementById('scanFrame').style.display = 'block';
+        document.getElementById('previewImg').src = card.dataset.img;
+        document.getElementById('fileTag').textContent = card.dataset.fname;
+        document.getElementById('runBtn').disabled = false;
+        
+        document.querySelector('.nav-item[data-view="analisis"]').click();
+      });
+      const metaEl = card.querySelector('.gmeta');
+      metaEl.style.cursor = 'pointer';
+      metaEl.addEventListener('click', (e) => {
+        e.stopPropagation();
+        openProjectDetail(card.dataset.proj);
+      });
+    });
+
+    applyGalleryFilter();
+  }
+  function applyGalleryFilter(){
+    const proj = document.getElementById('citraProyek').value;
+    const search = document.getElementById('citraSearch').value.toLowerCase();
+    const activeChip = document.querySelector('#citraChips .chip.active');
+    const stageFilter = activeChip ? activeChip.dataset.stage : '';
+    document.querySelectorAll('#galleryGrid .gallery-card').forEach(card => {
+      const matchProj = !proj || card.dataset.proj === proj;
+      const matchStage = !stageFilter || card.dataset.stage === stageFilter;
+      const matchSearch = !search || card.dataset.fname.toLowerCase().includes(search);
+      card.style.display = (matchProj && matchStage && matchSearch) ? '' : 'none';
+    });
+  }
+  document.getElementById('citraProyek').addEventListener('change', applyGalleryFilter);
+  document.getElementById('citraSearch').addEventListener('input', applyGalleryFilter);
+  document.getElementById('citraChips').addEventListener('click', e => {
+    if(!e.target.classList.contains('chip')) return;
+    document.querySelectorAll('#citraChips .chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    applyGalleryFilter();
+  });
+
+  /* ============ LAPORAN ============ */
+  let reportsBuilt = false;
+  const reportSeed = [
+    {proj:"PROYEK_IKN", name:"Istana Negara IKN Nusantara", jenis:"Mingguan", period:"24–30 Jun 2026", status:"ontrack", statusLabel:"Selesai Dibuat"},
+    {proj:"PROYEK_MRT", name:"MRT Jakarta Fase 2A", jenis:"Mingguan", period:"24–30 Jun 2026", status:"ontrack", statusLabel:"Selesai Dibuat"},
+    {proj:"PROYEK_KCJB", name:"Stasiun Kereta Cepat Halim", jenis:"Mingguan", period:"24–30 Jun 2026", status:"late", statusLabel:"Perlu Tinjauan"},
+    {proj:"PROYEK_MRT", name:"MRT Jakarta Fase 2A", jenis:"Bulanan", period:"Mei 2026", status:"ontrack", statusLabel:"Selesai Dibuat"},
+    {proj:"PROYEK_IKN", name:"Istana Negara IKN Nusantara", jenis:"Bulanan", period:"Mei 2026", status:"watch", statusLabel:"Selesai Dibuat"},
+    {proj:"PROYEK_KCJB", name:"Stasiun Kereta Cepat Halim", jenis:"Ad-hoc", period:"12 Jun 2026", status:"watch", statusLabel:"Selesai Dibuat"},
+  ];
+  function buildReports(){
+    reportsBuilt = true;
+    renderReports();
+  }
+  function renderReports(){
+    const list = document.getElementById('reportList');
+    const projFilter = document.getElementById('laporanProyek').value;
+    const jenisFilter = document.getElementById('laporanJenis').value;
+    const filtered = reportSeed.filter(r =>
+      (!projFilter || projFilter.startsWith(r.proj)) &&
+      (!jenisFilter || jenisFilter === r.jenis)
+    );
+    if(filtered.length === 0){
+      list.innerHTML = `<div style="padding:30px; text-align:center; color:var(--ink-faint); font-family:'JetBrains Mono'; font-size:12px;">Tidak ada laporan yang cocok dengan filter.</div>`;
+      return;
+    }
+    list.innerHTML = filtered.map(r => `
+      <div class="report-row">
+        <div class="report-ico">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8z"/><path d="M14 2v6h6"/></svg>
+        </div>
+        <div class="report-main">
+          <div class="rname">Laporan ${r.jenis} — ${r.name}</div>
+          <div class="rmeta">${r.proj} · PDF · dibuat otomatis dari hasil analisis CNN</div>
+        </div>
+        <div class="report-period">${r.period}</div>
+        <span class="badge ${r.status}">● ${r.statusLabel}</span>
+        <button class="btn" data-dl="${r.name}">⬇ Unduh</button>
+      </div>
+    `).join('');
+    list.querySelectorAll('[data-dl]').forEach(btn => {
+      btn.addEventListener('click', () => {
+        addLog('REPORT','ok', `Laporan ${btn.dataset.dl} diunduh oleh pengguna saat ini`, 'logPanel');
+        btn.textContent = '✓ Diunduh';
+        setTimeout(()=>{ btn.textContent = '⬇ Unduh'; }, 1800);
+      });
+    });
+  }
+  document.getElementById('laporanProyek').addEventListener('change', renderReports);
+  document.getElementById('laporanJenis').addEventListener('change', renderReports);
+  document.getElementById('genReportBtn').addEventListener('click', () => {
+    const btn = document.getElementById('genReportBtn');
+    btn.disabled = true;
+    btn.textContent = "Membuat laporan…";
+    setTimeout(() => {
+      reportSeed.unshift({proj:"PROYEK_007", name:"Gedung Kantor Blok C", jenis:"Ad-hoc", period:"Hari ini", status:"ontrack", statusLabel:"Baru Dibuat"});
+      dbSet('reports-db', reportSeed);
+      renderReports();
+      addLog('REPORT','ok', 'Laporan ad-hoc baru berhasil dibuat untuk PROYEK_007', 'logPanel');
+      btn.disabled = false;
+      btn.textContent = "+ Buat Laporan Baru";
+    }, 1100);
+  });
+
+  /* ============ RIWAYAT — FULL HISTORY ============ */
+  let historyBuilt = false;
+  const historySeed = [
+    {t:"07:42:11", tag:"INFERENCE", cls:"ok", text:"site_blokC_240.jpg diklasifikasikan sebagai Tahap Struktur (94.2%)", actor:"CNN Engine"},
+    {t:"07:41:55", tag:"UPLOAD", cls:"info", text:"3 citra baru diunggah — PROYEK_007", actor:"Pengelola Proyek"},
+    {t:"07:30:02", tag:"ALERT", cls:"warn", text:"PROYEK_011 terdeteksi 4.2% di bawah kurva target mingguan", actor:"Sistem"},
+    {t:"06:58:40", tag:"REPORT", cls:"ok", text:"Laporan mingguan PROYEK_004 berhasil dibuat dan diunduh", actor:"Manajer Proyek"},
+    {t:"06:12:19", tag:"MODEL", cls:"info", text:"Model cnn_v1.0.h5 dimuat — akurasi validasi 91.4%", actor:"Sistem"},
+    {t:"Kemarin 18:04", tag:"INFERENCE", cls:"ok", text:"site_tower_188.jpg diklasifikasikan sebagai Tahap Finishing (89.7%)", actor:"CNN Engine"},
+    {t:"Kemarin 17:50", tag:"UPLOAD", cls:"info", text:"5 citra baru diunggah — PROYEK_004", actor:"Pengelola Proyek"},
+    {t:"Kemarin 15:22", tag:"ALERT", cls:"warn", text:"PROYEK_007 mendekati ambang batas keterlambatan", actor:"Sistem"},
+    {t:"Kemarin 09:10", tag:"REPORT", cls:"ok", text:"Laporan ad-hoc PROYEK_011 dibuat untuk tinjauan internal", actor:"Admin"},
+    {t:"2 hari lalu", tag:"MODEL", cls:"info", text:"Evaluasi ulang model — akurasi validasi meningkat ke 92.6%", actor:"Sistem"},
+    {t:"3 hari lalu", tag:"INFERENCE", cls:"ok", text:"site_jembatan_096.jpg diklasifikasikan sebagai Tahap Pondasi (88.1%)", actor:"CNN Engine"},
+    {t:"3 hari lalu", tag:"ALERT", cls:"warn", text:"PROYEK_011 terlambat 6 hari dari target — eskalasi ke Manajer", actor:"Sistem"},
+  ];
+  function buildHistory(){
+    historyBuilt = true;
+    renderHistory();
+  }
+  function renderHistory(){
+    const panel = document.getElementById('historyPanel');
+    const activeChip = document.querySelector('#riwayatChips .chip.active');
+    const filter = activeChip ? activeChip.dataset.type : '';
+    const rows = historySeed.filter(h => !filter || h.cls === filter);
+    panel.innerHTML = `<div class="history-row head"><span>WAKTU</span><span>JENIS</span><span>KETERANGAN</span><span style="text-align:right;">SUMBER</span></div>` +
+      rows.map(h => `
+        <div class="history-row">
+          <span class="t">${h.t}</span>
+          <span class="tag ${h.cls}" style="justify-self:start; width:fit-content;">${h.tag}</span>
+          <span>${h.text}</span>
+          <span class="actor">${h.actor}</span>
+        </div>
+      `).join('');
+  }
+  document.getElementById('riwayatChips').addEventListener('click', e => {
+    if(!e.target.classList.contains('chip')) return;
+    document.querySelectorAll('#riwayatChips .chip').forEach(c => c.classList.remove('active'));
+    e.target.classList.add('active');
+    renderHistory();
+  });
+
+  /* ============ BOOTSTRAP DATABASE ============ */
+  initDatabase();
+
+  /* ============ LOGIN & REGISTER LOGIC ============ */
+  const loginForm = document.getElementById('loginForm');
+  const registerForm = document.getElementById('registerForm');
+  const showRegister = document.getElementById('showRegister');
+  const showLogin = document.getElementById('showLogin');
+  const loginTitle = document.querySelector('.login-header p');
+  const loginSuccess = document.getElementById('loginSuccess');
+
+  showRegister.addEventListener('click', () => {
+    loginForm.style.display = 'none';
+    registerForm.style.display = 'block';
+    loginTitle.textContent = 'DAFTAR AKUN BARU';
+    loginSuccess.style.display = 'none';
+  });
+
+  showLogin.addEventListener('click', () => {
+    registerForm.style.display = 'none';
+    loginForm.style.display = 'block';
+    loginTitle.textContent = 'LOGIN KE DASHBOARD';
+  });
+
+  // Simulasi penyimpanan akun
+  let registeredUsers = {
+    "admin@sitevision.co.id": "admin123", // Login via email bawaan
+    "admin": "admin123" // Login via username bawaan
+  };
+
+  // Muat akun yang sudah terdaftar dari penyimpanan lokal browser
+  try {
+    const savedUsers = localStorage.getItem('sitevision_users');
+    if (savedUsers) {
+      registeredUsers = { ...registeredUsers, ...JSON.parse(savedUsers) };
+    }
+  } catch(e) {
+    console.error("Gagal memuat data akun:", e);
+  }
+
+  registerForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const originalText = btn.textContent;
+    btn.textContent = "MEMPROSES...";
+    btn.style.opacity = "0.7";
+    
+    const username = document.getElementById('regUsername').value;
+    const email = document.getElementById('regEmail').value;
+    const password = document.getElementById('regPassword').value;
+    
+    setTimeout(() => {
+      // Menyimpan pendaftaran akun baru (bisa login lewat username maupun email)
+      registeredUsers[email] = password;
+      registeredUsers[username] = password;
+      
+      // Simpan pembaruan ke penyimpanan lokal (localStorage)
+      try {
+        localStorage.setItem('sitevision_users', JSON.stringify(registeredUsers));
+      } catch(e) {
+        console.error("Gagal menyimpan data akun:", e);
+      }
+      
+      btn.textContent = originalText;
+      btn.style.opacity = "1";
+      // Kembali ke form login
+      registerForm.style.display = 'none';
+      loginForm.style.display = 'block';
+      loginTitle.textContent = 'LOGIN KE DASHBOARD';
+      loginSuccess.style.display = 'block';
+      
+      // Isi otomatis username yang baru didaftarkan
+      document.getElementById('loginUsername').value = username;
+      document.getElementById('loginPassword').value = '';
+      
+      registerForm.reset();
+    }, 1000);
+  });
+
+  loginForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const btn = e.target.querySelector('button');
+    const originalText = btn.textContent;
+    const errorEl = document.getElementById('loginError');
+    
+    errorEl.style.display = 'none';
+    loginSuccess.style.display = 'none';
+    
+    btn.textContent = "MEMPROSES...";
+    btn.style.opacity = "0.7";
+    
+    const email = document.getElementById('loginUsername').value;
+    const password = document.getElementById('loginPassword').value;
+    
+    setTimeout(() => {
+      // Cek apakah akun terdaftar dan password benar
+      if (registeredUsers[email] && registeredUsers[email] === password) {
+        document.getElementById('login-container').style.display = 'none';
+        document.getElementById('app-container').style.display = 'block';
+        
+        btn.textContent = originalText;
+        btn.style.opacity = "1";
+        
+        const ring = document.getElementById('ringFg');
+        if (ring) {
+          ring.style.transition = 'none';
+          ring.style.strokeDashoffset = 402;
+          setTimeout(() => {
+            ring.style.transition = 'stroke-dashoffset 1.2s cubic-bezier(.4,0,.2,1)';
+            ring.style.strokeDashoffset = 402 * (1 - 0.67);
+          }, 50);
+        }
+      } else {
+        // Jika akun tidak ditemukan / salah password
+        btn.textContent = originalText;
+        btn.style.opacity = "1";
+        errorEl.style.display = 'block';
+      }
+    }, 1200);
+  });
+</script>
+</body>
+</html>
